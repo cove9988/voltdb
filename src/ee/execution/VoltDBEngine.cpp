@@ -2069,14 +2069,24 @@ void VoltDBEngine::executeTask(TaskType taskType, ReferenceSerializeInputBE &tas
         int64_t spHandle = taskInfo.readLong();
         ByteArray payloads = taskInfo.readBinaryString();
 
-        if (type == DR_STREAM_START || m_executorContext->drStream()->drStreamStarted()) {
-            m_executorContext->drStream()->generateDREvent(type, lastCommittedSpHandle,
-                                                           spHandle, uniqueId, payloads);
-        }
         if (m_executorContext->drReplicatedStream() &&
             (type == DR_STREAM_START || m_executorContext->drReplicatedStream()->drStreamStarted())) {
             m_executorContext->drReplicatedStream()->generateDREvent(type, lastCommittedSpHandle,
                                                                      spHandle, uniqueId, payloads);
+        }
+        if (type == DR_ELASTIC_CHANGE) {
+            ReferenceSerializeInputBE input(payloads.data(), 8);
+            int oldPartitionCnt = input.readInt();
+            if (m_executorContext->m_partitionId >= oldPartitionCnt && m_executorContext->m_partitionId != 16383) {
+                // skip the drStreamStarted() check as this DR_ELASTIC_CHANGE will be transformed into DR_STREAM_START
+                m_executorContext->drStream()->generateDREvent(type, lastCommittedSpHandle,
+                                                               spHandle, uniqueId, payloads);
+                break;
+            }
+        }
+        if (type == DR_STREAM_START || m_executorContext->drStream()->drStreamStarted()) {
+            m_executorContext->drStream()->generateDREvent(type, lastCommittedSpHandle,
+                                                           spHandle, uniqueId, payloads);
         }
         break;
     }
