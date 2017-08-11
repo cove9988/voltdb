@@ -2152,7 +2152,7 @@ public class RealVoltDB implements VoltDBInterface, RestoreAgent.Callback, HostM
 
     private void startBalanceSpiTask() {
 
-        final boolean disableSpiTask = "true".equals(System.getProperty("DISABLE_SPI_BALANCE", "false"));
+        final boolean disableSpiTask = "true".equals(System.getProperty("DISABLE_SPI_BALANCE", "true"));
         if (disableSpiTask) {
             hostLog.info("Balance SPI is not scheduled.");
             return;
