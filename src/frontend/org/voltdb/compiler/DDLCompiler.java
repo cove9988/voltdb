@@ -2119,6 +2119,15 @@ public class DDLCompiler {
         }
     }
 
+    /**
+     * Calculate the array of parameter types from the catalog.
+     *
+     * The catalog has the value of a VoltType enumeral.  We want a Type enumeral.  The
+     * function getDefaultTypeWithSize calculates this.
+     *
+     * @param fparams
+     * @return
+     */
     private static Type[] getParamTypesFromCatalog(CatalogMap<FunctionParameter> fparams) {
         int numParams = fparams.size();
         Type[] parameterTypes = new Type[numParams];

@@ -126,7 +126,8 @@ import com.google_voltpatches.common.collect.ImmutableList;
  *   <li>We first start with an empty catalog.  From the catalog jar file we extract a context.  This
  *       is a catalog object and the DDL string used to create the catalog object.  We call this DDL
  *       string the <em>Canonical DDL.</em> </li>
- *   <li>We process the canonical DDL string.
+ *   <li>We process the canonical DDL string.  This creates some VoltXML and also defines some
+ *       UDFs in the compiler's tables.  It does not create anything in the new catalog.
  *       <ol>
  *         <li>The canonical DDL string is broken up into individual statements.</li>
  *         <li>Each statement is prepreocessesd to find out what table or index it creates, and, for
@@ -138,8 +139,10 @@ import com.google_voltpatches.common.collect.ImmutableList;
  *             or an index internally, in HSQL's symbol table.  We have built into to HSQL the ability to
  *             query a for the VoltXML of a table or index.  So we can extract VoltXML from HSQL for
  *             these statements.</li>
- *         <li>Note that in this stage we are just processing canonical DDL.</li>
- *         <li>Note also that we need the VoltXML because we may mix VoltDB processing and HSQL processing
+ *         <li>In either case, HSQL or Volt processing (see S.K. & B.S. above) we get some XML.  We
+ *             diff the XML with the existing definition and apply the difference to the existing
+ *             definition.  This updates the existing definition with new stuff.</li>
+ *         <li>We need the VoltXML because we may mix VoltDB processing and HSQL processing
  *             for a single table.  Consider the strings:
  *             <pre>
  *               {@code
@@ -162,11 +165,18 @@ import com.google_voltpatches.common.collect.ImmutableList;
  *       </ol>
  *       The result of this processing is not a new catalog, but a new VoltXML object.  We can't just reuse
  *       the old catalog because it has the form of a set of commands for the EE, and we need the VoltXML tree
- *       to do the VoltXML differencing discussed above.  Note that procedures in the canonical DDL
- *       still have not been compiled to the catalog.  They are in the tracker, so the contents of the
- *       tracker is, perhaps, a result of this processing as well.  Since these are for the existing
- *       catalog, all function signatures, including function ids, should match the existing catalog's
- *       definition exactly.</li>
+ *       to do the VoltXML differencing discussed above.
+ *       </ol>
+ *         <li>Note that procedures in the canonical DDL still have not been compiled to the catalog.
+ *             They are in the tracker, so the contents of the
+ *             tracker is, perhaps, a result of this processing as well.  Since these are for the existing
+ *             catalog, all function signatures, including function ids, should match the existing catalog's
+ *             definition exactly.</li>
+ *         <li>We also need to add user defined functions to the compiler's tables so that indexes and
+ *             materialized views can use them.  We don't support UDFs in index expressions and MV expressions,
+ *             so this definition is entirely here because we want to give good error messages.  If we didn't
+ *             do this the error messages would be completely misleading.</li>
+ *       </ol>
  *   </li>
  *   <li>After all the canonical DDL has been compiled to XML, we process the new DDL in the same way as the
  *       canonical DDL. But this processing is done in the context of the canonical DDL.  Since we will just
@@ -989,7 +999,7 @@ public class VoltCompiler {
         return catalog.getClusters().get("cluster").getDatabases().get("database");
     }
 
-    private static Database initCatalogDatabase(Catalog catalog, Database previousDBIfAny) {
+    private static Database initCatalogDatabase(Catalog catalog) {
         // create the database in the catalog
         catalog.execute("add /clusters#cluster databases database");
         addDefaultRoles(catalog);
@@ -1039,7 +1049,7 @@ public class VoltCompiler {
     {
         m_catalog = new Catalog(); //
         m_catalog.execute("add / clusters cluster");
-        Database db = initCatalogDatabase(m_catalog, null);
+        Database db = initCatalogDatabase(m_catalog);
         List<VoltCompilerReader> ddlReaderList = DDLPathsToReaderList(ddlFilePaths);
         final VoltDDLElementTracker voltDdlTracker = new VoltDDLElementTracker(this);
         InMemoryJarfile jarOutput = new InMemoryJarfile();
@@ -1066,7 +1076,7 @@ public class VoltCompiler {
         final ArrayList<Class<?>> classDependencies = new ArrayList<>();
         final VoltDDLElementTracker voltDdlTracker = new VoltDDLElementTracker(this);
 
-        Database db = initCatalogDatabase(m_catalog, previousDBIfAny);
+        Database db = initCatalogDatabase(m_catalog);
 
         // shutdown and make a new hsqldb
         HSQLInterface hsql = HSQLInterface.loadHsqldb();

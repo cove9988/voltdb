@@ -193,8 +193,7 @@ public class CreateFunctionFromMethod extends StatementProcessor {
         }
 
         // Add the description of the function to the VoltXMLElement
-        // in m_schema.  Don't assign the function id now.  We'll do that
-        // when we register it later.
+        // in m_schema.  Use the function id we've got.
         //
         // Note here that the integer values for the return type and for the parameter
         // types are the value of a VoltType enumeral.  When the UDF is actually
